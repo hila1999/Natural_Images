@@ -2,59 +2,46 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-from torchvision import models, transforms
+from torchvision import transforms
 from sklearn.metrics import classification_report, accuracy_score
-from sklearn.model_selection import train_test_split
 from main import labels, image_data
 
 # Parameters
-IMG_SIZE = (224, 224)  # VGG16 expects 224x224 images
+IMG_SIZE = (128, 128)
 NUM_CLASSES = len(set(labels))
 BATCH_SIZE = 32
-EPOCHS = 30
+EPOCHS = 20
 LEARNING_RATE = 0.001
 
 # Normalize image data
 image_data = image_data / 255.0
+print("Shape of image_data:", image_data.shape)  # Debugging: Check the shape of image_data
 
-# Resize images to 224x224
-image_data_resized = torch.nn.functional.interpolate(
-    torch.tensor(image_data).permute(0, 3, 1, 2), size=IMG_SIZE, mode='bilinear'
-).permute(0, 2, 3, 1).numpy()
+# Reshape the flattened images back to (num_samples, height, width, channels)
+NUM_SAMPLES = image_data.shape[0]  # Number of samples
+IMAGE_HEIGHT, IMAGE_WIDTH, CHANNELS = 128, 128, 3  # Desired dimensions
 
-# Convert data to PyTorch tensors
-X_tensor = torch.tensor(image_data_resized, dtype=torch.float32)
-# Check the shape of X_tensor
-print("Original shape of X_tensor:", X_tensor.shape)
-
-# Reshape to (batch_size, channels, height, width)
-if len(X_tensor.shape) == 4 and X_tensor.shape[3] == 3:  # (num_samples, height, width, channels)
-    X_tensor = X_tensor.permute(0, 3, 1, 2)  # Convert to (num_samples, channels, height, width)
+if image_data.shape[1] == IMAGE_HEIGHT * IMAGE_WIDTH * CHANNELS:
+    image_data = image_data.reshape((NUM_SAMPLES, IMAGE_HEIGHT, IMAGE_WIDTH, CHANNELS))
 else:
-    raise ValueError("Expected input shape: (num_samples, height, width, channels)")
+    raise ValueError("Unexpected data shape. Please check the dimensions of the images.")
 
-print("Reshaped X_tensor:", X_tensor.shape)
+# Convert data to PyTorch tensors and permute to (num_samples, channels, height, width)
+X_tensor = torch.tensor(image_data, dtype=torch.float32).permute(0, 3, 1, 2)
+
 y_tensor = torch.tensor(labels, dtype=torch.long)
 
 # Split dataset into training and testing sets
+from sklearn.model_selection import train_test_split
+
 X_train, X_test, y_train, y_test = train_test_split(X_tensor, y_tensor, test_size=0.2, random_state=42)
 
-# Data augmentation and normalization for training
-train_transform = transforms.Compose([
+# Data augmentation
+transform = transforms.Compose([
     transforms.RandomHorizontalFlip(),
     transforms.RandomRotation(20),
     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
-
-# Normalization for testing
-test_transform = transforms.Compose([
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
-
-# Apply transformations
-X_train = torch.stack([train_transform(img) for img in X_train])
-X_test = torch.stack([test_transform(img) for img in X_test])
 
 # Create DataLoader for batch processing
 train_dataset = TensorDataset(X_train, y_train)
@@ -63,52 +50,73 @@ test_dataset = TensorDataset(X_test, y_test)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
-# Load pre-trained VGG16 model
-vgg16 = models.vgg16(pretrained=True)
 
-# Freeze all layers
-for param in vgg16.parameters():
-    param.requires_grad = False
+class CNN_Model(nn.Module):
+    def __init__(self, num_classes):
+        super(CNN_Model, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.fc1 = nn.Linear(128 * (IMG_SIZE[0] // 8) * (IMG_SIZE[1] // 8), 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, num_classes)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.5)
 
-# Replace the classifier part to match the number of classes
-vgg16.classifier[6] = nn.Linear(vgg16.classifier[6].in_features, NUM_CLASSES)
+    def forward(self, x):
+        x = self.pool(self.relu(self.bn1(self.conv1(x))))
+        x = self.pool(self.relu(self.bn2(self.conv2(x))))
+        x = self.pool(self.relu(self.bn3(self.conv3(x))))
+        x = x.view(-1, 128 * (IMG_SIZE[0] // 8) * (IMG_SIZE[1] // 8))
+        x = self.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = self.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
-# Unfreeze the classifier layers
-for param in vgg16.classifier.parameters():
-    param.requires_grad = True
 
-# Move model to GPU if available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-vgg16 = vgg16.to(device)
-
-# Loss function and optimizer
+# Initialize the model, loss function, and optimizer
+model = CNN_Model(num_classes=NUM_CLASSES)
+print(model)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(vgg16.classifier.parameters(), lr=LEARNING_RATE)
+optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 
 # Training loop
 for epoch in range(EPOCHS):
-    vgg16.train()
+    model.train()
     total_loss = 0
-    for X_batch, y_batch in train_loader:
-        X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+    correct = 0
+    total = 0
+
+    for batch in train_loader:
+        X_batch, y_batch = batch
         optimizer.zero_grad()
-        outputs = vgg16(X_batch)
+        outputs = model(X_batch)
         loss = criterion(outputs, y_batch)
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
 
-    avg_loss = total_loss / len(train_loader)
-    print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {avg_loss:.4f}")
+        # Calculate accuracy for training
+        preds = torch.argmax(outputs, dim=1)
+        correct += (preds == y_batch).sum().item()
+        total += y_batch.size(0)
+
+    train_acc = correct / total
+    print(f"Epoch {epoch + 1}/{EPOCHS}, Loss: {total_loss / len(train_loader):.4f}, Train Accuracy: {train_acc:.4f}")
 
 # Evaluation
-vgg16.eval()
+model.eval()
 all_preds = []
 all_labels = []
 with torch.no_grad():
-    for X_batch, y_batch in test_loader:
-        X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-        outputs = vgg16(X_batch)
+    for batch in test_loader:
+        X_batch, y_batch = batch
+        outputs = model(X_batch)
         preds = torch.argmax(outputs, dim=1)
         all_preds.extend(preds.cpu().numpy())
         all_labels.extend(y_batch.cpu().numpy())
@@ -116,4 +124,3 @@ with torch.no_grad():
 print("\nClassification Report:")
 print(classification_report(all_labels, all_preds))
 print(f"Accuracy: {accuracy_score(all_labels, all_preds):.4f}")
-print(f"Hila is loser")
