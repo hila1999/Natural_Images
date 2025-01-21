@@ -10,7 +10,7 @@ from main import labels, image_data
 IMG_SIZE = (128, 128)
 NUM_CLASSES = len(set(labels))
 BATCH_SIZE = 32
-EPOCHS = 20
+EPOCHS = 45
 LEARNING_RATE = 0.001
 
 # Normalize image data
