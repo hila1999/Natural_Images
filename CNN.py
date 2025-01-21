@@ -6,14 +6,14 @@ from torchvision import transforms
 from sklearn.metrics import classification_report, accuracy_score
 from main import labels, image_data
 
-# Parameters
+# parameters for model
 IMG_SIZE = (128, 128)
 NUM_CLASSES = len(set(labels))
 BATCH_SIZE = 32
 EPOCHS = 45
 LEARNING_RATE = 0.001
 
-# Normalize image data
+# here- normalize image data to be between [0,1]
 image_data = image_data / 255.0
 print("Shape of image_data:", image_data.shape)  # Debugging: Check the shape of image_data
 
@@ -26,24 +26,23 @@ if image_data.shape[1] == IMAGE_HEIGHT * IMAGE_WIDTH * CHANNELS:
 else:
     raise ValueError("Unexpected data shape. Please check the dimensions of the images.")
 
-# Convert data to PyTorch tensors and permute to (num_samples, channels, height, width)
+# here we convert data to PyTorch tensors and permute to (num_samples, channels, height, width)
 X_tensor = torch.tensor(image_data, dtype=torch.float32).permute(0, 3, 1, 2)
 
 y_tensor = torch.tensor(labels, dtype=torch.long)
 
-# Split dataset into training and testing sets
+# standard splitting dataset into training and testing sets
 from sklearn.model_selection import train_test_split
 
 X_train, X_test, y_train, y_test = train_test_split(X_tensor, y_tensor, test_size=0.2, random_state=42)
 
-# Data augmentation
+# data is corrupted to prevent overfitting
 transform = transforms.Compose([
     transforms.RandomHorizontalFlip(),
     transforms.RandomRotation(20),
     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
 ])
 
-# Create DataLoader for batch processing
 train_dataset = TensorDataset(X_train, y_train)
 test_dataset = TensorDataset(X_test, y_test)
 
@@ -79,7 +78,7 @@ class CNN_Model(nn.Module):
         return x
 
 
-# Initialize the model, loss function, and optimizer
+# initializing the model, the loss function, and the optimizer
 model = CNN_Model(num_classes=NUM_CLASSES)
 print(model)
 criterion = nn.CrossEntropyLoss()
@@ -109,7 +108,7 @@ for epoch in range(EPOCHS):
     train_acc = correct / total
     print(f"Epoch {epoch + 1}/{EPOCHS}, Loss: {total_loss / len(train_loader):.4f}, Train Accuracy: {train_acc:.4f}")
 
-# Evaluation
+# Evaluation on test data
 model.eval()
 all_preds = []
 all_labels = []
