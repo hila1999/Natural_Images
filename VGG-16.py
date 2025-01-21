@@ -3,6 +3,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
+from sklearn.metrics import confusion_matrix
 from torch import nn, optim
 
 matplotlib.use('TkAgg')  # Switch to a backend that supports interactive plotting
@@ -254,7 +255,7 @@ def train(model,
 
         history.append([train_loss, valid_loss, train_acc, valid_acc])
 
-        # Print every `print_every` epochs
+        # Print every print_every epochs
         if (epoch + 1) % print_every == 0:
             print(f'\nEpoch: {epoch} \tTraining Loss: {train_loss:.4f} \tValidation Loss: {valid_loss:.4f}')
             print(f'\t\tTraining Accuracy: {100 * train_acc:.2f}%\t Validation Accuracy: {100 * valid_acc:.2f}%')
@@ -296,3 +297,41 @@ model, history = train(
     print_every=2)
 
 print(history)
+# Function to evaluate the model on the test set and compute predictions
+def get_predictions(model, test_loader):
+    model.eval()  # Set model to evaluation mode
+    all_labels = []
+    all_preds = []
+
+    with torch.no_grad():  # Disable gradient calculations for efficiency
+        for images, labels in test_loader:
+            # Get model predictions
+            outputs = model(images)
+            _, preds = torch.max(outputs, dim=1)
+
+            # Store actual and predicted labels
+            all_labels.extend(labels.numpy())
+            all_preds.extend(preds.numpy())
+
+    return np.array(all_labels), np.array(all_preds)
+
+
+# Get actual labels and model predictions on test set
+all_labels, all_preds = get_predictions(model, test_loader)
+
+# Plot Confusion Matrix
+def plot_confusion_matrix(y_true, y_pred, class_names):
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=class_names, yticklabels=class_names)
+    plt.xlabel("Predicted Label")
+    plt.ylabel("True Label")
+    plt.title("Confusion Matrix")
+    plt.show()
+
+
+# Define class names (ensure they match your dataset labels)
+class_names = list(model.idx_to_class.values())  # Extract class names from model
+
+# Call the function with correct arguments
+plot_confusion_matrix(all_labels, all_preds, class_names)
