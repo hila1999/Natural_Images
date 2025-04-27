@@ -1,20 +1,21 @@
+
 # 📸 Natural Images Classification Project
 
-This project was developed as part of the "Deep Learning and NLP" course at Ariel University (2025). 
+This project was developed as part of the "Deep Learning and NLP" course at Ariel University (2025).  
 It focuses on designing, training, and evaluating different machine learning and deep learning models to classify images from the **Natural Images** dataset.
 
 ---
 
 ## 📚 Dataset Overview
 
-The **Natural Images** dataset includes **6,899 images** across 8 categories:
+The **Natural Images** dataset includes **6,899 images** across 8 categories:  
 **airplane**, **car**, **cat**, **dog**, **flower**, **fruit**, **motorbike**, and **person**.
 
-![Dataset Introduction](./57ef4654-7b0c-444f-9cdb-4859bc9a54b7.png)
+![Dataset Introduction](./Images_for_Readme/Dataset%20introduction.png)
 
 ### Distribution of Images
 
-![Distribution of Images](./3aa94e2b-48f9-4305-92d0-bbf958ee2e05.png)
+![Distribution of Images](./Images_for_Readme/Performance%20Evaluation.png)
 
 - Images were resized to **128x128** pixels.
 - Normalized pixel values to the range [0,1].
@@ -36,7 +37,7 @@ We explored multiple modeling approaches:
 
 **Confusion Matrix:**
 
-![Logistic Regression Confusion Matrix](./e6b31c35-d049-4233-84ab-20a6657a18d7.png)
+![Logistic Regression Confusion Matrix](./Images_for_Readme/Multi-Class%20Logistic%20Regression%20Classifier.png)
 
 ---
 
@@ -47,15 +48,15 @@ We explored multiple modeling approaches:
 
 **Architecture:**
 
-![FCNN Architecture](./4a24b40e-fbd6-4744-a235-62fe54dbd3ef.png)
+![FCNN Architecture](./Images_for_Readme/FCNN%20-%20Fully%20Connected%20Neural%20Network%20-graph.png)
 
 **Confusion Matrix:**
 
-![FCNN Confusion Matrix](./d955d1ce-21d4-4190-a00f-8a170cd9b872.png)
+![FCNN Confusion Matrix](./Images_for_Readme/FCNN%20-%20Fully%20Connected%20Neural%20Network.png)
 
 **Training and Validation Loss:**
 
-![FCNN Training Loss](./0401810e-6c12-40ef-abe3-63195352834a.png)
+![FCNN Training Loss](./Images_for_Readme/validation%20loss%20al%20training%20process%20of%20the%20FCNN%20model.png)
 
 ---
 
@@ -65,7 +66,7 @@ We explored multiple modeling approaches:
 
 **Confusion Matrix:**
 
-![CNN Confusion Matrix](./91f7abd7-c0f0-4f89-a4fd-f924a9ef9292.png)
+![CNN Confusion Matrix](./Images_for_Readme/CNN.png)
 
 ---
 
@@ -115,7 +116,3 @@ We explored multiple modeling approaches:
 ---
 
 > **Note:** All code, models, and further project details can be found in this repository.
-
----
-
-Ready to explore the world of deep learning and image classification! 🚀
